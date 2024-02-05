@@ -1,0 +1,179 @@
+---
+title: "TED Talks by Jim Holt and Nathaniel Kahn"
+#subtitle:
+author: "Rizwan, Syed Muhammad"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+### Don't delete this setup code chunk from your file
+knitr::opts_chunk$set(echo = FALSE, fig.width = 5, fig.height = 3.05, message = FALSE, warning = FALSE, comment = NULL)   ## DON'T ALTER THIS: this is to prevent printing the code or any unnecessary addition in your final "html" report file.
+
+# You can extend this list below to load all the packages required for your analyses:
+#====================================================================================
+library(dsEssex)
+library(tidyverse)
+library(dplyr)
+library(tidytext)
+library(ggrepel)
+library(knitr)
+# load the 'ted_talks' data
+#=========================
+data(ted_talks)
+MyData <- ted_talks %>%
+  filter(speaker %in% c("Jim Holt", "Nathaniel Kahn"))
+```
+
+## Introduction
+
+This report analyzes the content of two TED Talks by different speakers. The first talk was given by philosopher and author **Jim Holt** in **March 2014**, where he explores the question of why the universe exists, going through into various theories from philosophy, physics, and cosmology. The second talk, from **February 2002**, features filmmaker **Nathaniel Kahn** discussing his personal journey through his father's life and work, the renowned architect Louis Kahn. Through interviews with family members and colleagues, Nathaniel paints a portrait of his father's legacy and the impact of architecture on our lives. The report uses various techniques, such as identifying frequently used words and analyzing the overall sentiment of the speeches, to provide insights into the topics of cosmology, philosophy, and architecture presented in the talks.
+
+## Methods
+
+1.  **Tidying and Tokenisation:**
+
+    The dataset "MyData" consist of the data of two ted talks of the speaker Jim Holt and Nathaniel Kahn. The data is in untidy format i.e., in text form. For our analysis, we first must convert the data into the tidy format. Tidying is the process of arranging the data into specific structure. Tokenization is the process of splitting text into tokens. Such that one token per row. *unnest_tokens()* of tidytext's package is use for tidying and tokenising the ted talks of the two speakers in "MyData". The dataset now contain 4068 observation(tokens) which is stored in MyData_tidy.
+
+2.  **Stop Words Removal:**
+
+    When analysing text, certain words like "the," "and," and "to" are not informative and are called stop words. It is usually recommended to remove them. The *tidytext* package offers access to lists of stop words (via the *get_stopwords()* function) which can be used with *dplyr's* functions such as *anti_join()* to remove them. After removing the stop words from "Mydata_tidy", The data is now stored in a new variable "MyData_stop_words"
+
+3.  **Identification And Visualisation Of Top Words The Speakers:**
+
+    To get the insight about what actual the speaker tries to convey or on what words the speaker emphasizes the most, we identified the top words of each speaker and visualise it using a bar chart. Using count function of dplyr package, top words of each speaker were recognized and were plotted using *ggplot2* library.
+
+4.  **Comparing Speaker Words Using Visualisation:**
+
+    After identifying the top words, we select only the words whose sum of frequencies across the two talk is more than 10 times. To plot the words of Jim Holt on x-axis against words of Nathaniel Kahn on y-axis, *geom_text_repel()* from the package *ggrepel* is used. It adds the text directly to the plot. Text labels repel away from each other and away from edges of the panel.
+
+5.  **Calculating Odd-Ratio:**
+
+    For deeper analysis, odd ratio is being calculated. It is often used to measure the strength of association between a particular word or phrase and a particular sentiment. We use *inner_join* to assign **nrc** sentiments to the words in MyData_stop_words. Then by the *compute_OR* function from the *dsEssex* package, we calculated odd ratio of the sentiments of Jim Holt to sentiments of Nathaniel Kahn in a new column. To simplify the interpretation, we calculated log of odd ratio in a new column which transforms it into a more easily interpretable scale.
+
+6.  **Sentiment Analysis:**
+
+    The resulting data frame "MyData_stop_words" is ready for sentiment analysis. Through sentiment analysis, we will find out how many negative and positive words each speaker said. We will use *inner_join* with *get_sentiments(**"bing"**)*. The **"bing"** lexicon of *Hu and Liu (2004)* is a general purpose English lexicon that categorizes words as either positive or negative. Show the sentiments of the bing lexicon using *get_sentiments("bing")*. Secondly, we will calculate the positive and negative percentage of each talk by the speaker. Lastly, we will identify and plot the most common positive and negative words of both speaker using *geom_col()* and *facet_wrap()* to facet your plot by sentiment.
+
+## Results
+
+The data was first tokenized so that, it can be converted in a tidy format. it is important for the analysis, that the data should be in the tidy format which mean splitting text into tokens.
+
+```{r}
+MyData_tidy <- MyData %>% #MyData dataset is being loaded which stores the value in new variable MyData_tidy
+  tidytext::unnest_tokens(word, text) #unnest_token is a function from tidytext package which splits the text into words. The argument word assigns where the values of word will be stored in a column and text is the column in MyData that contains text data.
+kable(MyData_tidy[1:5,], caption= "Tokenized Data") #function of knitr package that generates formatted table. The table of 5 rows and all the columns is being generated along with the caption
+```
+
+The resulting tokenized data consist of **4068 observation** that is every single word is a different observation and **5 variables**.
+
+After tokenizing the data, it is important to remove the stop words. Words like "a", "is", "the" are considered as stop words. In order to clean the data with the stop words, The tidytext package offers access to lists of stop words (get_stopwords() function) which is used with dplyr's functions anti_join().
+
+```{r}
+MyData_stop_words <- MyData_tidy %>% #MyData_tidy dataset is being loaded which stores the value in new variable MyData_stop_words
+  dplyr::anti_join(get_stopwords()) #anti_join is a function of dplyr. get_stopwords() returns a set of stop words. the anti_join function removes all the rows from MyData_tidy that contain any stop words in get_stopwords().
+kable(MyData_stop_words[1:5,], caption= "Removal of Stop Words ") #function of knitr package that generates formatted table. The table of 5 rows and all the columns is being generated along with the caption
+```
+
+The data now obtained is of **1878 observation** and **5 variables**, which means **2190** stop words are being removed or cleaned from the data.
+
+Moving further with the analysis, it is important to find out the top words which shows the frequency of each word deliver by the speaker. It plays an important role in finding what message the speaker is trying to convey and on which things the speaker emphasizes the most. Following are the top words of each speaker.
+
+```{r}
+Holts_words <- MyData_stop_words %>% #the MyData_stop_words dataset is being called which stores the values in new dataframe Holts_words
+  dplyr::filter(speaker == "Jim Holt") %>% # filtering the dataframe to only include rows where the speaker column matches Jim Holt.
+  dplyr::count(speaker, word, sort = TRUE) #count of each unique combination of speaker and word is calculated which is them arranged in descending order. 
+Holts_words %>%
+  dplyr::slice_max(n, n = 25) %>% #selecting 25 rows based on the highest count value
+  dplyr::mutate(word = reorder(word, n)) %>% #reorder these rows bases on the word column
+  ggplot2::ggplot(aes(n, word)) + ggplot2::geom_col() + ggtitle("Jim Holt's Top Words") #Visualise using ggplot2 package. the top 25words used by Jim Holt. the ggplot() specifies the df to be used and the aesthetic mapping of the plot. geom_col() creates a bar chart and the ggtitile() add the title in the chart.
+Kahn_words <- MyData_stop_words %>% #the MyData_stop_words dataset is being called which stores the values in new dataframe Kahn_words
+  dplyr::filter(speaker == "Nathaniel Kahn") %>% # filtering the dataframe to only include rows where the speaker column matches Nathaniel Kahn
+  dplyr::count(speaker, word, sort = TRUE) #count of each unique combination of speaker and word is calculated which is them arranged in descending order. 
+Kahn_words %>%
+  dplyr::slice_max(n, n = 25) %>% #selecting 25 rows based on the highest count value
+  dplyr::mutate(word = reorder(word, n)) %>% #reorder these rows bases on the word column
+  ggplot2::ggplot(aes(n, word)) + ggplot2::geom_col()+ ggtitle("Nathaniel Kahn Top Words")  #Visualise using ggplot2 package. the top 25words used by Nathaniel kahn. the ggplot() specifies the df to be used and the aesthetic mapping of the plot. geom_col() creates a bar chart and the ggtitile() add the title in the chart.
+```
+
+The top words of Jim Holt includes reality, life etc. which gives a more clear insight about the talk whereas Nathaniel Kahn focuses more on man, building etc. in his TED session.
+
+After that speaker words are plotted against each other to see what insights can we get.
+
+```{r}
+dplyr::bind_rows(Holts_words, Kahn_words) %>% #combines two dataframes into one using bind_rows() function from dplyr package
+  group_by(word) %>% # group the combined dataframe by word
+  filter(sum(n) > 10) %>% # filters out any row whose total word count is less than 10
+  ungroup() %>% #ungroups the dataframe
+  pivot_wider(names_from = "speaker", values_from = "n", values_fill = 0) %>% # pivot_wider() function to reshape the data from long to wide format. speaker columns as the names of the new columns, n as the value of new column and fill any missing value with 0
+  ggplot(aes(`Jim Holt`, `Nathaniel Kahn`)) +  ggtitle("Visualisation of Speaker Words Comparison")+ #add the title
+  geom_abline(color = "red", size = 1.2, alpha = 0.75, lty = 2)+ #geom_abline() function adds a red dashed line to the plot, which represents a 1:1 comparison between the frequency of words used by both speakers.
+  geom_text_repel(aes(label = word), max.overlaps = 25)+ #add text labels to the plot 
+  coord_fixed() #fixed/same x-scale and y-scale
+```
+
+The scatter plot created in the code shows the relationship between the frequency of words used by the speakers, Jim Holt and Nathaniel Kahn. Here, the slope is represented in a red dashed line which represents the equality line which means frequency of words used by both speaker are same. The points above the slope represents the words more oftenly used by Nathaniel Kahn and the points below the line represents the words which are more frequently used by Jim Holt.
+
+Moving forward with the analysis, odd ratio of the sentiment is calculated. As described in method, inner_join is being used to assign nrc to sentiments.
+
+```{r}
+odd_ratio<- MyData_stop_words%>% #the MyData_stop_words dataset is being called which stores the values in new dataframe odd_ratio
+  inner_join(get_sentiments("nrc"), by = "word") %>% #inner join function from dplyr package uses nrc sentiment that matches the word column and creates a new data frame that contain the sentiment of each word.
+  count(speaker, sentiment) %>% #groups the dataframe by speaker and sentiment and then counts the number of words for each combination of speaker and sentiment.
+  pivot_wider(names_from = speaker, values_from = n, values_fill = 0) %>% #pivot_wider() to reshape the data from long to wide format.
+  mutate(OR = compute_OR(`Jim Holt`, `Nathaniel Kahn`,  correction = FALSE), log_OR = log(OR), sentiment = reorder(sentiment, log_OR)) #calculates the odd-ratio for each sentiment using compute_OR. then it calculates the natural logarithm of the odds ratio.
+kable(odd_ratio, caption = "Computing Odd ratio") #function of knitr package that generates formatted table. 
+```
+
+We can see the logaritm values of odd ratio's are scaled. We can see some values are in negative. The sadness and anger sentiment have the highest logarithm of odd ratio. For better understanding, a graph is plotted.
+
+```{r}
+odd_ratio %>%
+  ggplot(aes(sentiment, log_OR, fill = log_OR < 0)) + #defines the aesthetics of the plot. sentiment on x-axis and log odd ratio values on y-axis
+  geom_col(show.legend = FALSE) + #create the stacked bar chart and remove the legend
+  ylab("Log odds ratio") + #sets the label of y-axis
+  ggtitle("Relation between sentiments and Log Odd ratio")  +
+  coord_flip() + #flips x and y axis to create a horizontal bar chart
+  scale_fill_manual(name = "", values = c("green", "red")) #sets the bar color manually. green for positive log OR values and red for negative log OR values
+```
+
+The more the value is close to 1, it represents doubling of the odds whereas the the value 0 or less than zero represent no difference in the odds of a sentiment. Here, the green bars shows the probabilty of doubling of the odds.
+
+At last, Sentiment Analysis of the data is performed.For this bing lexicon is used. The "bing" lexicon of Hu and Liu (2004) is a general purpose English lexicon that categorizes words as either positive or negative.
+
+```{r}
+MyData_sentiment <- MyData_stop_words %>% #creates a new data frame MyData_sentiment
+  inner_join(get_sentiments("bing")) #get_sentiments("bing")returns two columns, a word column and a sentiment column where the sentiment is either positive or negative
+
+sentiment_counts <- MyData_sentiment %>% #creates a new dataframe called sentiment_counts
+    count(speaker, headline, sentiment) #grouping MyData_sentiment by speaker, headline and sentiment. then counting the number of occurrences of each group
+kable(sentiment_counts, caption = " Sentiment Counts Using Bing lexicon") #function of knitr package that generates formatted table
+```
+
+The count tells us about the sentiment related to each headline of the speaker. We can see the real picture of how many positive an negative sentiments are present. We can see Jim Holt speech has more positive and negative sentiment as compared to the Nathaniel Kahn speech. But, it is still confusing. To get more clear picture, we will calculate a positive percentage for each speaker.
+
+```{r}
+percent_sentiment_count<-sentiment_counts %>% #new dataframe is created percent_sentiment_count
+  group_by(headline) %>% #group by headline
+  mutate(total = sum(n), percent = n / total) %>%  # find the total number of words in each headline, and percentage of each sentiment
+  filter(sentiment == "positive") %>% # filter the results for only positive sentiment
+  arrange(desc(percent)) #arrange the percentage in descending order
+kable(percent_sentiment_count, caption = "Percent Sentiment Count") #function of knitr package that generates formatted table
+```
+
+By calculating a percentage of positive sentiment. We get the idea about the sentiment of each speaker. It is easy to conclude that Nathaniel Kahn sentiments about the talk "Scenes from My Architect" was **61.3%** positive where as Jim Holt was neutral with his sentiment in his talk about "why does the universe exist?" that is **56.1%** positive or approximately neutral. We can also analyse further by finding most common positive and negative words by both the speaker.
+
+```{r}
+word_counts <- MyData_sentiment%>% #new dataframe word_counts is created
+  count(word, sentiment) # count by word and sentiment
+top_words <- word_counts %>% #new dataframe top_words is created
+  group_by(sentiment) %>% # group by sentiment
+  slice_max(n, n = 10) %>% #selecting 10 rows based on the highest count value
+  mutate(word = reorder(word, n)) %>% #reorder these rows bases on the word column
+  ungroup() #ungroup the dataframe
+
+ggplot(top_words, aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) + # create the bar chart and remove the legend.
+  facet_wrap(~ sentiment, scales = "free") #creates a faceted plot with one plot panel for each sentiment and sets the scales of the y-axis to "free" to allow each plot panel to have its own y-axis scale.
+```
+
+The analysis concludes that, the sentiment of Nathaniel Kahn's talk is more positive than Jim Holt's talk. This is likely due to the personal and emotional nature of Nathaniel's talk, which goes in interest with many viewers. On the other hand, Jim Holt's talk is more philosophical and abstract, which may be less emotionally engaging for some viewers.
